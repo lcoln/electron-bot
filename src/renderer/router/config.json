@@ -1,0 +1,9 @@
+{
+  "ignore": [
+    "/welcome"
+  ],
+  "replace": {
+    "/application/resource": "/application/resource/:id?",
+    "/application/app-list/edit": "/application/app-list/edit/:id?"
+  }
+}

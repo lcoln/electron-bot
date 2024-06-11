@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 
 export function useRenderBox(ref) {
   useEffect(() => {
@@ -27,6 +29,23 @@ export function useRenderBox(ref) {
       cube.rotation.y += 0.01;
       renderer.render(scene, camera);
     };
+    const loader = new GLTFLoader();
+    // const dracoLoader = new DRACOLoader();
+    // dracoLoader.setDecoderPath('/draco/');
+    // dracoLoader.preload();
+    // loader.setDRACOLoader(dracoLoader);
+
+    loader.load(
+      'assets/3d/box.glb',
+      function (gltf) {
+        console.log({ gl: gltf });
+        scene.add(gltf.scene);
+      },
+      undefined,
+      function (error) {
+        console.error(error);
+      },
+    );
     animate();
   }, []);
 }

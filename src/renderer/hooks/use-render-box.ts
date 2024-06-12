@@ -36,7 +36,7 @@ export function useRenderBox(ref) {
     // loader.setDRACOLoader(dracoLoader);
 
     loader.load(
-      'assets/3d/box.glb',
+      '/3d/box.glb',
       function (gltf) {
         console.log({ gl: gltf });
         scene.add(gltf.scene);

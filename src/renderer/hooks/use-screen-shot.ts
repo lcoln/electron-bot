@@ -6,44 +6,36 @@ function handleIsElectron() {
   return Boolean(window && window.process && window.process.type);
 }
 
-async function createChildWindow() {
-  const { remote } = require('electron');
-  const { BrowserWindow } = remote;
-
-  let childWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    frame: false,
-    transparent: true,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
-  });
-
-  childWindow.loadURL(`file://${__dirname}/child.html`);
-  childWindow.setAlwaysOnTop(true);
-  childWindow.maximize();
-
-  childWindow.on('closed', () => {
-    childWindow = null;
-  });
-
-  return childWindow;
-}
-
 export function useScreenShot() {
   useEffect(() => {
     let currWindow;
 
     const handleKeyDown = async (event) => {
-      const { shiftKey, ctrlKey, key } = event;
+      // if (!handleIsElectron()) return;
 
-      if (handleIsElectron()) {
+      console.log(window.navigator.platform);
+      const isMac = window.navigator.platform.includes('Mac');
+      const { shiftKey, ctrlKey, metaKey, key } = event;
+      console.log({ shiftKey, ctrlKey, key });
+
+      if (isMac ? metaKey : ctrlKey) {
         switch (key) {
           case 'x':
-            if (shiftKey && ctrlKey) {
-              currWindow = await createChildWindow();
+            if (shiftKey) {
+              console.log(878987689);
+              currWindow = window.electron.openWindow({
+                config: {
+                  width: 800,
+                  height: 600,
+                  frame: false,
+                  transparent: true,
+                  webPreferences: {
+                    nodeIntegration: true,
+                    contextIsolation: false,
+                  },
+                },
+                url: `'/assets/html/screenshot.html`,
+              });
             }
             break;
           case 'Escape':

@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { useMouse, useRenderBox } from './hooks';
+import { useMouse, useRenderBox, useScreenShot } from './hooks';
 
 function ThreeCube() {
   const mountRef = useRef<HTMLDivElement>(null);
   useMouse();
-  // useScreenShot();
+  useScreenShot();
   useRenderBox(mountRef);
 
   return (

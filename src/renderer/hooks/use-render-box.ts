@@ -81,6 +81,16 @@ export function useRenderBox(ref) {
 
         // 调整对象位置，使其以中心点旋转
         obj.scene.position.sub(center);
+        // 遍历模型网格，并调整材质
+        obj.scene.traverse(function (child) {
+          if (child.isMesh) {
+            child.material = new THREE.MeshStandardMaterial({
+              color: child.material.color,
+              transparent: true,
+              opacity: 1,
+            });
+          }
+        });
         objRef.current = obj.scene;
       },
       function (xhr) {

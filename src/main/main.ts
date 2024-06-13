@@ -34,6 +34,11 @@ ipcMain.on('ipc-example', async (event, arg) => {
   console.log(msgTemplate(arg));
   event.reply('ipc-example', msgTemplate('pong'));
 });
+ipcMain.on('openWindow', (event, arg) => {
+  const { config, url } = arg;
+  const childWin = new BrowserWindow(config);
+  childWin.loadURL(url);
+});
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');

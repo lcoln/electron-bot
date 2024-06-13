@@ -31,6 +31,12 @@ const electronHandler = {
       currentWindow.setPosition(x + deltaX, y + deltaY);
     }
   },
+  openWindow: (arg) => {
+    const { config, url } = arg;
+    const childWin = new BrowserWindow(config);
+    childWin.loadURL(url);
+    return childWin;
+  },
 };
 
 contextBridge.exposeInMainWorld('electron', electronHandler);

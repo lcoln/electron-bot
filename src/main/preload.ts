@@ -4,10 +4,13 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 const { BrowserWindow } = require('@electron/remote');
 
+// const path = require('path');
+
 export type Channels = 'ipc-example';
 
 const electronHandler = {
   ipcRenderer: {
+    invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
     sendMessage(channel: Channels, ...args: unknown[]) {
       ipcRenderer.send(channel, ...args);
     },
@@ -37,6 +40,10 @@ const electronHandler = {
     childWin.loadURL(url);
     return childWin;
   },
+  openWindowsOnDisplays: (arg) => {
+    ipcRenderer.send('openWindowsOnDisplays', arg);
+  },
+  captureScreen: () => ipcRenderer.invoke('capture-screen'),
 };
 
 contextBridge.exposeInMainWorld('electron', electronHandler);

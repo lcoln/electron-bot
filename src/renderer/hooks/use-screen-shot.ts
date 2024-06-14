@@ -22,8 +22,12 @@ export function useScreenShot() {
         switch (key) {
           case 'x':
             if (shiftKey) {
-              console.log(878987689);
-              currWindow = window.electron.openWindow({
+              const rootPath =
+                await window.electron.ipcRenderer.invoke('get-root-path');
+              console.log(878987689, rootPath);
+              const screenshotPath = await window.electron.captureScreen();
+
+              currWindow = window.electron.openWindowsOnDisplays({
                 config: {
                   width: 800,
                   height: 600,
@@ -34,7 +38,7 @@ export function useScreenShot() {
                     contextIsolation: false,
                   },
                 },
-                url: `'/assets/html/screenshot.html`,
+                url: `file://${rootPath}/assets/html/screenshot.html?path=${screenshotPath}`,
               });
             }
             break;

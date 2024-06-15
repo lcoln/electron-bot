@@ -11,8 +11,37 @@
       width: 100vw;
       height: 100vh;
       overflow: hidden;
-      background-size: cover;
-      background-position: center;
+      background-size: contain;
+    }
+    .zoom-style {
+      position: relative;
+      margin-top: 50px;
+      margin-left: 50px;
+      border: 1px solid #FDEBA9;
+    }
+    .zoom-style:before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      margin-top: -0.5px;
+      width: 100%;
+      height: 1px;
+      background-color: #F6D76B;
+    }
+    .zoom-style:after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      margin-left: -0.5px;
+      width: 1px;
+      height: 100%;
+      background-color: #F6D76B;
+    }
+    .zoom-hidden {
+      visibility: hidden;
+    }
+    .zoom-show {
+      visibility: visible;
     }
   </style>
 </head>
@@ -21,6 +50,81 @@
     const urlParams = new URLSearchParams(window.location.search);
     const imagePath = urlParams.get('path');
     document.body.style.backgroundImage = `url('file://${imagePath}')`;
+  </script>
+  <script>
+    const { closeWindows } = window.screenshotApi
+    const zoomSelector = document.createElement('div')
+    const zoomSize = 120
+    zoomSelector.style.width = `${zoomSize}px`
+    zoomSelector.style.height = `${zoomSize}px`
+    zoomSelector.style.backgroundImage = document.body.style.backgroundImage
+    zoomSelector.classList.add('zoom-style')
+    zoomSelector.classList.add('zoom-hidden')
+    document.body.appendChild(zoomSelector)
+
+
+    function integer (num) {
+      // 转成字符串
+      let newnum = '';
+      newnum = `${num}`;
+      if (newnum.indexOf('.') === -1) {
+        return { int: parseInt(num, 10), divisor: 1 };
+      }
+      // 分割字符串
+      let len = newnum.split('.')[1].length;
+      // 求10的倍数
+      let total = 1;
+      while (len !== 0) {
+        total *= 10;
+        len -= 1;
+      }
+      // 返回整数和10的倍数
+      return { int: parseInt(`${total * num}`, 10), divisor: total };
+    };
+    function toPercent (num) {
+      const res = integer(num);
+      return `${((res.int * 100) / res.divisor).toFixed(2)}%`;
+    };
+    function getBackgroundPosition(x, y, zoomSize) {
+      const xPercent = toPercent(x - zoomSize / 2, window.innerWidth);
+      const yPercent = toPercent(y - zoomSize / 2, window.innerHeight);
+
+      return { xPercent, yPercent };
+    }
+
+    function mousemove(ev){
+      const x = ev.pageX
+      const y = ev.pageY
+      console.log({x, y})
+      zoomSelector.style.left = `${x - zoomSize / 2}px`;  // Center the zoomSelector at the cursor
+      zoomSelector.style.top = `${y - zoomSize / 2}px`;
+
+      const { xPercent, yPercent } = getBackgroundPosition(x, y, zoomSize);
+      zoomSelector.style.backgroundPosition = `${xPercent} ${yPercent}`
+    }
+    function mouseenter(){
+      if (!zoomSelector.classList.contains('zoom-show')) {
+        zoomSelector.classList.add('zoom-show')
+      }
+      
+      if (zoomSelector.classList.contains('zoom-hidden')) {
+        zoomSelector.classList.remove('zoom-hidden')
+      }
+    }
+
+    async function handleKeyDown (event) {
+      const { key } = event;
+      switch (key) {
+        case 'Escape':
+          closeWindows()
+          break;
+        default:
+          break;
+      }
+    };
+    document.addEventListener('mouseenter', mouseenter)
+    document.addEventListener('mousemove', mousemove)
+    document.addEventListener('keydown', handleKeyDown);
   </script>
 </body>
 </html>

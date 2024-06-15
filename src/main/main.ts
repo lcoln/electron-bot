@@ -9,32 +9,16 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import {
-  app,
-  BrowserWindow,
-  shell,
-  ipcMain,
-  screen,
-  desktopCapturer,
-} from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
+import './ipc';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
 
 const remoteMain = require('@electron/remote/main');
-const fs = require('fs');
 
 remoteMain.initialize();
-const captureScreen = async () => {
-  const sources = await desktopCapturer.getSources({ types: ['screen'] });
-  const screenSource = sources[0];
-  const screenshotBuffer = await screenSource.thumbnail.toPNG();
-  const screenshotPath = path.join(app.getPath('temp'), 'screenshot.png');
-
-  fs.writeFileSync(screenshotPath, screenshotBuffer);
-  return screenshotPath;
-};
 
 class AppUpdater {
   constructor() {
@@ -45,23 +29,6 @@ class AppUpdater {
 }
 
 let mainWindow: BrowserWindow | null = null;
-
-ipcMain.on('ipc-example', async (event, arg) => {
-  const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  console.log(msgTemplate(arg));
-  event.reply('ipc-example', msgTemplate('pong'));
-});
-ipcMain.on('openWindow', (event, arg) => {
-  const { config, url } = arg;
-  const childWin = new BrowserWindow(config);
-  childWin.loadURL(url);
-});
-ipcMain.handle('get-root-path', (event) => {
-  return path.resolve(__dirname, '..', '..');
-});
-ipcMain.handle('capture-screen', async (event) => {
-  return await captureScreen();
-});
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
@@ -109,8 +76,9 @@ const createWindow = async () => {
     icon: getAssetPath('icon.png'),
     transparent: true,
     webPreferences: {
+      contextIsolation: true,
       preload: app.isPackaged
-        ? path.join(__dirname, 'preload.js')
+        ? path.join(__dirname, 'preload', 'main')
         : path.join(__dirname, '../../.erb/dll/preload.js'),
     },
   });
@@ -140,26 +108,6 @@ const createWindow = async () => {
   mainWindow.webContents.setWindowOpenHandler((edata) => {
     shell.openExternal(edata.url);
     return { action: 'deny' };
-  });
-  const createWindowOnAllDisplays = ({ url, config }) => {
-    const displays = screen.getAllDisplays();
-    displays.forEach((display) => {
-      const displayConfig = {
-        ...config,
-        x: display.bounds.x,
-        y: display.bounds.y,
-        width: display.bounds.width,
-        height: display.bounds.height,
-        enableLargerThanScreen: true, // mac
-      };
-      const win = new BrowserWindow(displayConfig);
-      win.setAlwaysOnTop(true, 'screen-saver');
-      win.loadURL(url);
-    });
-  };
-
-  ipcMain.on('openWindowsOnDisplays', (event, { config, url }) => {
-    createWindowOnAllDisplays({ config, url });
   });
   // Remove this if your app does not use auto updates
   // eslint-disable-next-line

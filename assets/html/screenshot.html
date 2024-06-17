@@ -18,6 +18,7 @@
       margin-top: 50px;
       margin-left: 50px;
       border: 1px solid #FDEBA9;
+      background-repeat: no-repeat;
     }
     .zoom-style:before {
       content: "";
@@ -43,13 +44,85 @@
     .zoom-show {
       visibility: visible;
     }
+    #capture-area {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+    }
   </style>
 </head>
 <body>
+  <canvas id="capture-area"></canvas>
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const imagePath = urlParams.get('path');
     document.body.style.backgroundImage = `url('file://${imagePath}')`;
+  </script>
+  <script>
+    function adjustCanvasSize(canvas, ctx) {
+      // 获取设备像素比
+      const dpr = window.devicePixelRatio || 1;
+
+      // 设置 canvas 的 CSS 尺寸
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+
+      // 设置 canvas 的实际绘制尺寸
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+
+      // 设置缩放比例
+      ctx.scale(dpr, dpr);
+    }
+    class Draw {
+      constructor(opts){
+        this.canvas = document.getElementById('capture-area');
+        this.ctx = this.canvas.getContext('2d');
+        adjustCanvasSize(this.canvas, this.ctx)
+        const rect = this.canvas.getBoundingClientRect();
+        this.originX = opts.x - rect.left;
+        this.originY = opts.y - rect.top;
+        this.isEdit = false;
+      }
+      startPaint(){
+      }
+      paint(captureInfo){
+        if (!this.canvas) return
+        if (!this.isEdit) {
+          this.isEdit = true
+        }
+
+        const { x, y } = captureInfo
+
+        const rect = this.canvas.getBoundingClientRect();
+        const endX = x - rect.left;
+        const endY = y - rect.top;
+        const width = endX - this.originX;
+        const height = endY - this.originY;
+
+        const ctx = this.canvas.getContext('2d');
+        ctx.save()
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        ctx.fillStyle = 'rgba(0,0,0,.5)'
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
+
+        // 清除矩形区域的半透明背景
+        ctx.clearRect(this.originX, this.originY, width, height);
+
+        // ctx.restore()
+
+        // 绘制矩形
+        ctx.beginPath();
+        ctx.strokeStyle = 'blue'; // 蓝色边框
+        ctx.lineWidth = 2; // 矩形边框的宽度
+        ctx.strokeRect(this.originX, this.originY, width, height);
+
+        console.log({x: this.originX, y: this.originY, width, height})
+      }
+    }
   </script>
   <script>
     const { closeWindows } = window.screenshotApi
@@ -62,6 +135,7 @@
     zoomSelector.classList.add('zoom-hidden')
     document.body.appendChild(zoomSelector)
 
+    let captureAreaCtx = null
 
     function integer (num) {
       // 转成字符串
@@ -85,22 +159,23 @@
       const res = integer(num);
       return `${((res.int * 100) / res.divisor).toFixed(2)}%`;
     };
-    function getBackgroundPosition(x, y, zoomSize) {
-      const xPercent = toPercent(x - zoomSize / 2, window.innerWidth);
-      const yPercent = toPercent(y - zoomSize / 2, window.innerHeight);
-
-      return { xPercent, yPercent };
-    }
 
     function mousemove(ev){
+      if (!captureAreaCtx) return
+
       const x = ev.pageX
       const y = ev.pageY
-      console.log({x, y})
-      zoomSelector.style.left = `${x - zoomSize / 2}px`;  // Center the zoomSelector at the cursor
-      zoomSelector.style.top = `${y - zoomSize / 2}px`;
+      // console.log({x, y})
+      zoomSelector.style.left = `${x}px`
+      zoomSelector.style.top = `${y}px`
 
-      const { xPercent, yPercent } = getBackgroundPosition(x, y, zoomSize);
+      const { width, height } = window.screen
+      const xPercent = toPercent(x / width)
+      const yPercent = toPercent(y / height)
+      // console.log({xPercent, yPercent})
       zoomSelector.style.backgroundPosition = `${xPercent} ${yPercent}`
+      // console.log({captureAreaCtx})
+      captureAreaCtx.paint({ x: ev.clientX, y: ev.clientY })
     }
     function mouseenter(){
       if (!zoomSelector.classList.contains('zoom-show')) {
@@ -110,6 +185,32 @@
       if (zoomSelector.classList.contains('zoom-hidden')) {
         zoomSelector.classList.remove('zoom-hidden')
       }
+    }
+    function mouseout(){
+      if (zoomSelector.classList.contains('zoom-show')) {
+        zoomSelector.classList.remove('zoom-show')
+      }
+      
+      if (!zoomSelector.classList.contains('zoom-hidden')) {
+        zoomSelector.classList.add('zoom-hidden')
+      }
+    }
+    function mousedown(ev){
+      if (captureAreaCtx) return
+      captureAreaCtx = new Draw({ x: ev.clientX, y: ev.clientY })
+      captureAreaCtx.startPaint()
+      console.log(captureAreaCtx, 'mousedown111')
+    }
+    function mouseup(){
+      if (captureAreaCtx.isEdit) {
+        captureAreaCtx.isEdit = false
+        return
+      }
+      
+      captureAreaCtx = null
+      console.log(captureAreaCtx, zoomSelector, 'mouseup')
+
+      zoomSelector && document.body.removeChild(zoomSelector)
     }
 
     async function handleKeyDown (event) {
@@ -123,7 +224,12 @@
       }
     };
     document.addEventListener('mouseenter', mouseenter)
+    // document.addEventListener('mouseout', mouseout)
+    
     document.addEventListener('mousemove', mousemove)
+    document.addEventListener('mousedown', mousedown)
+    document.addEventListener('mouseup', mouseup)
+
     document.addEventListener('keydown', handleKeyDown);
   </script>
 </body>

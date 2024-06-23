@@ -15,6 +15,7 @@ export function useScreenShot() {
 
       const isMac = window.navigator.platform.includes('Mac');
       const { shiftKey, ctrlKey, metaKey, key } = event;
+      console.log({ shiftKey, ctrlKey, metaKey, key });
 
       if (isMac ? metaKey : ctrlKey) {
         switch (key) {

@@ -80,47 +80,70 @@
       constructor(opts){
         this.canvas = document.getElementById('capture-area');
         this.ctx = this.canvas.getContext('2d');
-        adjustCanvasSize(this.canvas, this.ctx)
+        adjustCanvasSize(this.canvas, this.ctx);
         const rect = this.canvas.getBoundingClientRect();
         this.originX = opts.x - rect.left;
         this.originY = opts.y - rect.top;
+        this.endX = this.originX;
+        this.endY = this.originY;
         this.isEdit = false;
+        this.isDraggingRectangle = false;
+        this.dragOffsetX = 0;
+        this.dragOffsetY = 0;
+        this.width = 0;
+        this.height = 0;
       }
-      startPaint(){
-      }
+      startPaint(){}
       paint(captureInfo){
-        if (!this.canvas) return
-        if (!this.isEdit) {
-          this.isEdit = true
-        }
+        if (!this.canvas || !this.isEdit) return;
 
-        const { x, y } = captureInfo
-
+        const { x, y } = captureInfo;
         const rect = this.canvas.getBoundingClientRect();
-        const endX = x - rect.left;
-        const endY = y - rect.top;
-        const width = endX - this.originX;
-        const height = endY - this.originY;
+        this.endX = x - rect.left;
+        this.endY = y - rect.top;
+        this.width = this.endX - this.originX;
+        this.height = this.endY - this.originY;
 
         const ctx = this.canvas.getContext('2d');
-        ctx.save()
+        ctx.save();
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        ctx.fillStyle = 'rgba(0,0,0,.5)'
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
-
-        // 清除矩形区域的半透明背景
-        ctx.clearRect(this.originX, this.originY, width, height);
-
-        // ctx.restore()
-
-        // 绘制矩形
+        ctx.fillStyle = 'rgba(0,0,0,.5)';
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.clearRect(this.originX, this.originY, this.width, this.height);
+        ctx.restore();
         ctx.beginPath();
-        ctx.strokeStyle = 'blue'; // 蓝色边框
-        ctx.lineWidth = 2; // 矩形边框的宽度
-        ctx.strokeRect(this.originX, this.originY, width, height);
+        ctx.strokeStyle = 'blue';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.originX, this.originY, this.width, this.height);
+      }
+      endPaint(){
+        const ctx = this.canvas.getContext('2d');
+        console.log('endPaint');
+      }
+      drag(captureInfo){
+        if (!this.canvas || !this.isDraggingRectangle) return;
 
-        console.log({x: this.originX, y: this.originY, width, height})
+        const { x, y } = captureInfo;
+        const rect = this.canvas.getBoundingClientRect();
+        const deltaX = x - rect.left - this.dragOffsetX;
+        const deltaY = y - rect.top - this.dragOffsetY;
+
+        this.originX = deltaX;
+        this.originY = deltaY;
+        this.endX = deltaX + this.width;
+        this.endY = deltaY + this.height;
+
+        const ctx = this.canvas.getContext('2d');
+        ctx.save();
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.fillStyle = 'rgba(0,0,0,.5)';
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.clearRect(this.originX, this.originY, this.width, this.height);
+        ctx.restore();
+        ctx.beginPath();
+        ctx.strokeStyle = 'blue';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.originX, this.originY, this.width, this.height);
       }
     }
   </script>
@@ -161,21 +184,28 @@
     };
 
     function mousemove(ev){
-      if (!captureAreaCtx) return
+      if (!captureAreaCtx) return;
 
-      const x = ev.pageX
-      const y = ev.pageY
-      // console.log({x, y})
-      zoomSelector.style.left = `${x}px`
-      zoomSelector.style.top = `${y}px`
+      const x = ev.pageX;
+      const y = ev.pageY;
+      zoomSelector.style.left = `${x}px`;
+      zoomSelector.style.top = `${y}px`;
+      const { width, height } = window.screen;
+      const xPercent = toPercent(x / width);
+      const yPercent = toPercent(y / height);
+      zoomSelector.style.backgroundPosition = `${xPercent} ${yPercent}`;
 
-      const { width, height } = window.screen
-      const xPercent = toPercent(x / width)
-      const yPercent = toPercent(y / height)
-      // console.log({xPercent, yPercent})
-      zoomSelector.style.backgroundPosition = `${xPercent} ${yPercent}`
-      // console.log({captureAreaCtx})
-      captureAreaCtx.paint({ x: ev.clientX, y: ev.clientY })
+      if (captureAreaCtx.isDraggingRectangle) {
+        captureAreaCtx.drag({ x: ev.clientX, y: ev.clientY });
+      } else {
+        captureAreaCtx.paint({ x: ev.clientX, y: ev.clientY });
+      }
+
+      if (x > captureAreaCtx.originX && x < captureAreaCtx.endX && y > captureAreaCtx.originY && y < captureAreaCtx.endY) {
+        document.body.style.cursor = 'move';
+      } else {
+        document.body.style.cursor = 'default';
+      }
     }
     function mouseenter(){
       if (!zoomSelector.classList.contains('zoom-show')) {
@@ -194,23 +224,40 @@
       if (!zoomSelector.classList.contains('zoom-hidden')) {
         zoomSelector.classList.add('zoom-hidden')
       }
+      console.log('mouseout')
     }
     function mousedown(ev){
-      if (captureAreaCtx) return
-      captureAreaCtx = new Draw({ x: ev.clientX, y: ev.clientY })
-      captureAreaCtx.startPaint()
-      console.log(captureAreaCtx, 'mousedown111')
+      if (captureAreaCtx) {
+        const { clientX, clientY } = ev;
+        const rect = document.getElementById('capture-area').getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        if (x > captureAreaCtx.originX && x < captureAreaCtx.endX && y > captureAreaCtx.originY && y < captureAreaCtx.endY) {
+          captureAreaCtx.isDraggingRectangle = true;
+          captureAreaCtx.dragOffsetX = clientX - captureAreaCtx.originX;
+          captureAreaCtx.dragOffsetY = clientY - captureAreaCtx.originY;
+          return;
+        }
+      }
+      captureAreaCtx = new Draw({ x: ev.clientX, y: ev.clientY });
+      captureAreaCtx.isEdit = true;
+      captureAreaCtx.startPaint();
+      console.log(captureAreaCtx, 'mousedown111');
     }
     function mouseup(){
+      console.log(captureAreaCtx, zoomSelector, 'mouseup');
       if (captureAreaCtx.isEdit) {
-        captureAreaCtx.isEdit = false
-        return
+        captureAreaCtx.isEdit = false;
       }
-      
-      captureAreaCtx = null
-      console.log(captureAreaCtx, zoomSelector, 'mouseup')
-
-      zoomSelector && document.body.removeChild(zoomSelector)
+      if (captureAreaCtx.isDraggingRectangle) {
+        captureAreaCtx.isDraggingRectangle = false;
+        return;
+      }
+      captureAreaCtx.endPaint();
+      zoomSelector && document.body.removeChild(zoomSelector);
+    }
+    function mouseleave(){
+      console.log('mouseleave')
     }
 
     async function handleKeyDown (event) {
@@ -225,6 +272,7 @@
     };
     document.addEventListener('mouseenter', mouseenter)
     // document.addEventListener('mouseout', mouseout)
+    document.addEventListener('mouseleave', mouseleave)
     
     document.addEventListener('mousemove', mousemove)
     document.addEventListener('mousedown', mousedown)

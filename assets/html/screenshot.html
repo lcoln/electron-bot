@@ -38,10 +38,10 @@
       height: 100%;
       background-color: #F6D76B;
     }
-    .zoom-hidden {
+    .hidden {
       visibility: hidden;
     }
-    .zoom-show {
+    .show {
       visibility: visible;
     }
     #capture-area {
@@ -51,10 +51,38 @@
       width: 100vw;
       height: 100vh;
     }
+    #capture-tools {
+      position: absolute;
+    }
+    #capture-tools ul {
+      display: flex;
+      flex-direction: row;
+      justify-items: center;
+      border-radius: 4px;
+      color: #fff;
+      list-style: none;
+      /* background-color: rgba(0, 0, 0, 0.3); */
+      background: linear-gradient(135deg, #ffa69e, #faf3dd, #b8f2e6);
+    }
+    #capture-tools ul li {
+      width: 20px;
+      height: 20px;
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      border-radius: 100%;
+      text-align: center;
+      line-height: 20px;
+      background-color: rgba(0, 0, 0, 0.1);
+    }
   </style>
 </head>
 <body>
   <canvas id="capture-area"></canvas>
+  <div class="hidden" id="capture-tools">
+    <ul>
+      <li>1</li>
+    </ul>
+  </div>
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const imagePath = urlParams.get('path');
@@ -87,6 +115,7 @@
         this.endX = this.originX;
         this.endY = this.originY;
         this.isEdit = false;
+        this.isPaintDone = false;
         this.isDraggingRectangle = false;
         this.dragOffsetX = 0;
         this.dragOffsetY = 0;
@@ -118,6 +147,17 @@
       }
       endPaint(){
         const ctx = this.canvas.getContext('2d');
+        if (!this.isPaintDone) {
+          this.isPaintDone = true
+        }
+        if (this.isEdit) {
+          this.isEdit = false;
+        }
+        if (this.isDraggingRectangle) {
+          this.isDraggingRectangle = false;
+          return;
+        }
+        
         console.log('endPaint');
       }
       drag(captureInfo){
@@ -155,7 +195,7 @@
     zoomSelector.style.height = `${zoomSize}px`
     zoomSelector.style.backgroundImage = document.body.style.backgroundImage
     zoomSelector.classList.add('zoom-style')
-    zoomSelector.classList.add('zoom-hidden')
+    zoomSelector.classList.add('hidden')
     document.body.appendChild(zoomSelector)
 
     let captureAreaCtx = null
@@ -184,49 +224,57 @@
     };
 
     function mousemove(ev){
-      if (!captureAreaCtx) return;
 
       const x = ev.pageX;
       const y = ev.pageY;
-      zoomSelector.style.left = `${x}px`;
-      zoomSelector.style.top = `${y}px`;
-      const { width, height } = window.screen;
-      const xPercent = toPercent(x / width);
-      const yPercent = toPercent(y / height);
-      zoomSelector.style.backgroundPosition = `${xPercent} ${yPercent}`;
-
-      if (captureAreaCtx.isDraggingRectangle) {
-        captureAreaCtx.drag({ x: ev.clientX, y: ev.clientY });
-      } else {
-        captureAreaCtx.paint({ x: ev.clientX, y: ev.clientY });
+      if (zoomSelector) {
+        zoomSelector.style.left = `${x}px`;
+        zoomSelector.style.top = `${y}px`;
+        const { width, height } = window.screen;
+        const xPercent = toPercent(x / width);
+        const yPercent = toPercent(y / height);
+        zoomSelector.style.backgroundPosition = `${xPercent} ${yPercent}`;
       }
 
-      if (x > captureAreaCtx.originX && x < captureAreaCtx.endX && y > captureAreaCtx.originY && y < captureAreaCtx.endY) {
-        document.body.style.cursor = 'move';
-      } else {
-        document.body.style.cursor = 'default';
+      if (captureAreaCtx) {
+        console.log('mousemove')
+  
+        if (captureAreaCtx.isDraggingRectangle) {
+          captureAreaCtx.drag({ x: ev.clientX, y: ev.clientY });
+        } else {
+          captureAreaCtx.paint({ x: ev.clientX, y: ev.clientY });
+        }
+  
+        if (x > captureAreaCtx.originX && x < captureAreaCtx.endX && y > captureAreaCtx.originY && y < captureAreaCtx.endY) {
+          document.body.style.cursor = 'move';
+        } else {
+          document.body.style.cursor = 'default';
+        }
       }
+
     }
     function mouseenter(){
-      if (!zoomSelector.classList.contains('zoom-show')) {
-        zoomSelector.classList.add('zoom-show')
+      if (!zoomSelector.classList.contains('show')) {
+        zoomSelector.classList.add('show')
       }
       
-      if (zoomSelector.classList.contains('zoom-hidden')) {
-        zoomSelector.classList.remove('zoom-hidden')
+      if (zoomSelector.classList.contains('hidden')) {
+        zoomSelector.classList.remove('hidden')
       }
+      console.log('mouseenter')
     }
     function mouseout(){
-      if (zoomSelector.classList.contains('zoom-show')) {
-        zoomSelector.classList.remove('zoom-show')
+      if (zoomSelector.classList.contains('show')) {
+        zoomSelector.classList.remove('show')
       }
       
-      if (!zoomSelector.classList.contains('zoom-hidden')) {
-        zoomSelector.classList.add('zoom-hidden')
+      if (!zoomSelector.classList.contains('hidden')) {
+        zoomSelector.classList.add('hidden')
       }
       console.log('mouseout')
     }
     function mousedown(ev){
+      console.log({captureAreaCtx})
       if (captureAreaCtx) {
         const { clientX, clientY } = ev;
         const rect = document.getElementById('capture-area').getBoundingClientRect();
@@ -239,21 +287,26 @@
           return;
         }
       }
+      if (captureAreaCtx?.isPaintDone) {
+        return
+      }
       captureAreaCtx = new Draw({ x: ev.clientX, y: ev.clientY });
       captureAreaCtx.isEdit = true;
       captureAreaCtx.startPaint();
       console.log(captureAreaCtx, 'mousedown111');
     }
     function mouseup(){
-      console.log(captureAreaCtx, zoomSelector, 'mouseup');
-      if (captureAreaCtx.isEdit) {
-        captureAreaCtx.isEdit = false;
+      captureAreaCtx?.endPaint?.();
+      const captureTools = document.getElementById('capture-tools');
+      if (captureTools) {
+        captureTools.style.top = `${captureAreaCtx.endY}px`
+        captureTools.style.width = `${captureAreaCtx.width}px`
+        captureTools.style.left = `${captureAreaCtx.originX}px`
+        captureTools.classList.add('show')
+        console.log(`{captureAreaCtx.endY}px`, 'dfdfdfdfd')
+        
       }
-      if (captureAreaCtx.isDraggingRectangle) {
-        captureAreaCtx.isDraggingRectangle = false;
-        return;
-      }
-      captureAreaCtx.endPaint();
+      console.log(captureAreaCtx, zoomSelector, 'mouseup', captureTools);
       zoomSelector && document.body.removeChild(zoomSelector);
     }
     function mouseleave(){

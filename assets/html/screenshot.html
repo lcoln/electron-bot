@@ -13,6 +13,13 @@
       overflow: hidden;
       background-size: contain;
     }
+    .bg {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+    }
     .zoom-style {
       position: relative;
       margin-top: 50px;
@@ -57,7 +64,8 @@
     #capture-tools ul {
       display: flex;
       flex-direction: row;
-      justify-items: center;
+      padding: 0 10px;
+      justify-content: space-between;
       border-radius: 4px;
       color: #fff;
       list-style: none;
@@ -72,7 +80,12 @@
       border-radius: 100%;
       text-align: center;
       line-height: 20px;
+      cursor: pointer;
+      transition: .4s;
       background-color: rgba(0, 0, 0, 0.1);
+    }
+    #capture-tools ul li:hover {
+      background-color: rgba(0, 0, 0, 0.5);
     }
   </style>
 </head>
@@ -80,13 +93,53 @@
   <canvas id="capture-area"></canvas>
   <div class="hidden" id="capture-tools">
     <ul>
-      <li>1</li>
+      <li>
+        <span>1</span>
+      </li>
+      <li>
+        <img class="capture-tools-confirm" src="../icons/check.svg" alt="SVG Image" width="100%">
+      </li>
     </ul>
   </div>
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const imagePath = urlParams.get('path');
-    document.body.style.backgroundImage = `url('file://${imagePath}')`;
+    // const img = document.createElement('img');
+    // img.src = `url('file://${imagePath}')`;
+    // img.classList.add('bg')
+    // document.body.appendChild(img);
+
+    document.body.style.backgroundImage = `url('file://${imagePath}')`
+
+    const confirmBtn = document.querySelector('.capture-tools-confirm')
+
+    confirmBtn.addEventListener('click', () => {
+      console.log('confirmBtn')
+      // const img = new Image();
+      // img.src = `file://${imagePath}`
+
+      // 获取 canvas 和 captureAreaCtx
+      const canvas = document.getElementById('capture-area');
+      const ctx = canvas.getContext('2d');
+      
+      // 确定裁剪区域的坐标和尺寸
+      const { originX, originY, width, height } = captureAreaCtx;
+
+      // 创建一个临时 canvas 用于裁剪图像
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = width;
+      tempCanvas.height = height;
+      const tempCtx = tempCanvas.getContext('2d');
+
+      // 将裁剪区域的图像绘制到临时 canvas 上
+      tempCtx.drawImage(canvas, originX, originY, width, height, 0, 0, width, height);
+
+      // 创建一个新的 Image 对象并设置其 src 属性
+      const img = new Image();
+      img.src = tempCanvas.toDataURL('image/png'); 
+
+    })
+
   </script>
   <script>
     function adjustCanvasSize(canvas, ctx) {
